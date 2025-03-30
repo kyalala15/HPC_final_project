@@ -2,6 +2,11 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <chrono>
+#include <omp.h>
+
+#define NUM_THREADS 1
+#define INPUT_FILE_PATH "../images/pat1000.pgm"
 
 const int GX[3][3] = {
     {-1, 0, 1},
@@ -15,26 +20,14 @@ const int GY[3][3] = {
     {1,  2,  1}
 };
 
-void normalizeImage(std::vector<std::vector<int>>& image, int width, int height, int maxVal) {
-    if (maxVal == 0) return;
-
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
-            image[i][j] = (image[i][j] * 255) / maxVal;
-        }
-    }
-}
-
-void applySobel(const std::vector<std::vector<int>>& inputImage,
-                std::vector<std::vector<int>>& outputImage,
-                int width, int height) {
-    int maxGradient = 0;
-    
+void applySobel(const std::vector<std::vector<int>>& inputImage, std::vector<std::vector<int>>& outputImage, 
+    int width, int height) {
+    #pragma omp parallel for num_threads(NUM_THREADS)
     for (int i = 1; i < height - 1; ++i) {
         for (int j = 1; j < width - 1; ++j) {
             int sumX = 0;
             int sumY = 0;
-            
+
             for (int p = -1; p <= 1; ++p) {
                 for (int q = -1; q <= 1; ++q) {
                     int pixel = inputImage[i + p][j + q];
@@ -42,14 +35,29 @@ void applySobel(const std::vector<std::vector<int>>& inputImage,
                     sumY += pixel * GY[p + 1][q + 1];
                 }
             }
-            
+
             int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
             outputImage[i][j] = magnitude;
-            maxGradient = std::max(maxGradient, magnitude);
         }
     }
-    
-    normalizeImage(outputImage, width, height, maxGradient);
+}
+
+void normalizeImage(std::vector<std::vector<int>>& image, int width, int height) {
+    int maxVal = 0;
+
+    for (int i = 1; i < height - 1; ++i) {
+        for (int j = 1; j < width - 1; ++j) {
+            maxVal = std::max(maxVal, image[i][j]);
+        }
+    }
+
+    if (maxVal == 0) return;
+
+    for (int i = 1; i < height - 1; ++i) {
+        for (int j = 1; j < width - 1; ++j) {
+            image[i][j] = (image[i][j] * 255) / maxVal;
+        }
+    }
 }
 
 bool readPGM(const std::string& filename, std::vector<std::vector<int>>& image, int& width, int& height) {
@@ -95,9 +103,11 @@ bool writePGM(const std::string& filename, const std::vector<std::vector<int>>& 
 }
 
 int main() {
-    std::string inputFilename = "../images/pat1000.pgm";
+    std::string inputFilename = INPUT_FILE_PATH;
     std::string outputFilename = "output.pgm";
     int width, height;
+    
+    std::cout << "# threads: " << NUM_THREADS << std::endl;
 
     std::vector<std::vector<int>> inputImage;
     if (!readPGM(inputFilename, inputImage, width, height)) {
@@ -105,7 +115,19 @@ int main() {
     }
 
     std::vector<std::vector<int>> outputImage(height, std::vector<int>(width, 0));
+    
+    // Start timing
+    auto start = std::chrono::high_resolution_clock::now();
+
     applySobel(inputImage, outputImage, width, height);
+
+    // End timing
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
+
+    std::cout << "Sobel filter execution time: " << duration.count() << " ms" << std::endl;
+
+    normalizeImage(outputImage, width, height);
 
     if (!writePGM(outputFilename, outputImage, width, height)) {
         return 1;
