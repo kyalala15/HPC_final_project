@@ -21,29 +21,58 @@ const int GY[3][3] = {
 };
 
 void applySobel(const std::vector<int>& inputImage, std::vector<int>& outputImage, int width, int height) {
-
-    const int TILE_SIZE = 32;  // Tune for L1/L2 cache behavior
-
-    // #pragma omp parallel for collapse(2) schedule(dynamic)
+    // Cache-optimized parallel loop
     #pragma omp parallel for num_threads(NUM_THREADS)
-    for (int ii = 1; ii < height - 1; ii += TILE_SIZE) {
-        for (int jj = 1; jj < width - 1; jj += TILE_SIZE) {
-            for (int i = ii; i < std::min(ii + TILE_SIZE, height - 1); ++i) {
-                for (int j = jj; j < std::min(jj + TILE_SIZE, width - 1); ++j) {
-                    int sumX = 0, sumY = 0;
+    for (int i = 1; i < height - 1; ++i) {
+        // Pre-compute row indices to reduce multiplication operations
+        int row = i * width;
+        int rowAbove = (i - 1) * width;
+        int rowBelow = (i + 1) * width;
+        
+        for (int j = 1; j < width - 1; ++j) {
+            int sumX = 0, sumY = 0;
+            
+            // Top row
+            int idx = rowAbove + j - 1;
+            sumX += inputImage[idx] * GX[0][0];
+            sumY += inputImage[idx] * GY[0][0];
+            
+            idx = rowAbove + j;
+            sumX += inputImage[idx] * GX[0][1];
+            sumY += inputImage[idx] * GY[0][1];
+            
+            idx = rowAbove + j + 1;
+            sumX += inputImage[idx] * GX[0][2];
+            sumY += inputImage[idx] * GY[0][2];
+            
+            // Middle row
+            idx = row + j - 1;
+            sumX += inputImage[idx] * GX[1][0];
+            sumY += inputImage[idx] * GY[1][0];
+            
+            idx = row + j;
+            sumX += inputImage[idx] * GX[1][1];
+            sumY += inputImage[idx] * GY[1][1];
+            
+            idx = row + j + 1;
+            sumX += inputImage[idx] * GX[1][2];
+            sumY += inputImage[idx] * GY[1][2];
+            
+            // Bottom row
+            idx = rowBelow + j - 1;
+            sumX += inputImage[idx] * GX[2][0];
+            sumY += inputImage[idx] * GY[2][0];
+            
+            idx = rowBelow + j;
+            sumX += inputImage[idx] * GX[2][1];
+            sumY += inputImage[idx] * GY[2][1];
+            
+            idx = rowBelow + j + 1;
+            sumX += inputImage[idx] * GX[2][2];
+            sumY += inputImage[idx] * GY[2][2];
 
-                    for (int p = -1; p <= 1; ++p) {
-                        for (int q = -1; q <= 1; ++q) {
-                            int pixel = inputImage[(i + p) * width + (j + q)];
-                            sumX += pixel * GX[p + 1][q + 1];
-                            sumY += pixel * GY[p + 1][q + 1];
-                        }
-                    }
-
-                    int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
-                    outputImage[i * width + j] = magnitude;
-                }
-            }
+            int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
+            outputImage[row + j] = magnitude;
         }
     }
 }
@@ -78,7 +107,7 @@ bool readPGM(const std::string& filename, std::vector<int>& image, int& width, i
     file >> width >> height;
     int maxVal;
     file >> maxVal;
-    file.ignore(1); // Skip newline
+    file.ignore(1); 
 
     std::vector<unsigned char> buffer(width * height);
     file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
