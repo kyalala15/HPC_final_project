@@ -40,12 +40,25 @@ To allocate a node on Explorer, use the following command:
 After allocating a node, you can compile and run the code as follows:
 
 1. **Compile the baseline version**:
+
+   ```bash
    cd sobel
    make run
+   ```
 
 2. **Compile the optimized version**:
+
+   ```bash
    cd ../sobel_optimized
    make run
+   ```
+
+3. **Clean up**:
+   In each directory, run:
+
+   ```bash
+   make clean
+   ```
 
 ## Modifying Input Parameters
 
