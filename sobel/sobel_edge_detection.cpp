@@ -1,3 +1,8 @@
+/*
+Algorithm Reference: 
+https://medium.com/@twinnroshan/understanding-and-implementing-edge-detection-in-c-with-sobel-operator-31159f26587c
+*/
+
 #include <iostream>
 #include <fstream>
 #include <vector>
