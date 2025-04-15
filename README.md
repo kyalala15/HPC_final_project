@@ -35,7 +35,10 @@ The optimized version includes the following improvements:
 ## Running on Explorer
 
 To allocate a node on Explorer, use the following command:
-`srun --cpus-per-task=28 --cpu-bind=cores --partition=courses --pty --time=01:00:00 --nodes=1 /bin/bash`
+
+```bash
+srun --cpus-per-task=28 --cpu-bind=cores --partition=courses --pty --time=01:00:00 --nodes=1 /bin/bash
+```
 
 After allocating a node, you can compile and run the code as follows:
 
